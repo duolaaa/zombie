@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>CryptoZombies front-end</title>
+    <script language="javascript" type="text/javascript" src="jquery.min.js"></script>
+    <script language="javascript" type="text/javascript" src="web3.min.js"></script>
+    <script language="javascript" type="text/javascript" src="cryptozombies_abi.js"></script>
+  </head>
+  <body>
+    <div id="txStatus"></div>
+    <div id="zombies"></div>
+
+    <script>
+      var cryptoZombies;
+      var userAccount;
+
+      function startApp() {
+        var cryptoZombiesAddress = "0xa9a9286ca33859d0e3491f393d7610a68c4b5809";
+        cryptoZombies = new web3.eth.Contract(cryptozombiesABI, cryptoZombiesAddress);
+        //console.log(cryptoZombies);
+
+        var accountInterval = setInterval(function() {
+            web3.eth.getAccounts().then((res = []) => {
+              const id = res[0];
+              if (id) {
+                userAccount = id;
+                getZombiesByOwner(userAccount).then(displayZombies);
+              }
+              return res;
+            });
+          }, 1000);
+        
+        }
+      
+
+      function getZombieDetails(id) {
+        return cryptoZombies.methods.zombies(id).call()
+      }
+
+      function zombieToOwner(id) {
+        return cryptoZombies.methods.zombieToOwner(id).call()
+      }
+
+      function getZombiesByOwner(owner) {
+        return cryptoZombies.methods.getZombiesByOwner(owner).call()
+      }
+
+      function displayZombies(ids) {
+        $("#zombies").empty();
+        for (id of ids) {
+          getZombieDetails(id).then(function(zombie) {
+            $("#zombies").append(`<div class="zombie">
+              <ul>
+                <li>Name: ${zombie.name}</li>
+                <li>DNA: ${zombie.dna}</li>
+                <li>Level: ${zombie.level}</li>
+                <li>Wins: ${zombie.winCount}</li>
+                <li>Losses: ${zombie.lossCount}</li>
+                <li>Ready Time: ${zombie.readyTime}</li>
+              </ul>
+            </div>`);
+          });
+        }
+      }
+
+      function createRandomZombie(name) {
+        $("#txStatus").text("Creating new zombie on the blockchain. take a while...");
+        
+        return cryptoZombies.methods.createRandomZombie(name)
+        .send({ from: userAccount })
+        .on("receipt", function(receipt) {
+          $("#txStatus").text("Successfully created " + name + "!");
+          
+          getZombiesByOwner(userAccount).then(displayZombies);
+        })
+        .on("error", function(error) {
+          $("#txStatus").text(error);
+        });
+      }
+
+
+      window.addEventListener('load', function() {
+        if (typeof web3 !== 'undefined') {
+          window.web3 = new Web3(web3.currentProvider);
+          // window.web3 = new Web3(
+          //   new Web3.providers.HttpProvider("wss://mainnet.infura.io/ws")
+          //   );
+        } else {
+          console.log('No web3? You should consider trying MetaMask!')
+          window.web3 = new Web3(
+            new Web3.providers.HttpProvider("wss://mainnet.infura.io/ws")
+            );
+        }
+
+        startApp();
+      })
+
+    </script>
+  </body>
+</html>
